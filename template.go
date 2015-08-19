@@ -55,7 +55,7 @@ func NewTemplate(template, startTag, endTag string) (*Template, error) {
 	return &t, nil
 }
 
-// TagFunc can be used as substitution value in the map passed to Execute*.
+// TagFunc can be used as a substitution value in the map passed to Execute*.
 //
 // It must write contents to w and return the number of bytes written.
 type TagFunc func(w io.Writer) (int, error)
