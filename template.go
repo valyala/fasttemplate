@@ -8,7 +8,7 @@ import (
 )
 
 // Template implements simple template engine, which can be used for fast
-// tags (aka placeholders) substitution.
+// tags' (aka placeholders) substitution.
 type Template struct {
 	texts           [][]byte
 	tags            []string
