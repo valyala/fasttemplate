@@ -222,9 +222,9 @@ func TestMixedValues(t *testing.T) {
 	s := tpl.ExecuteString(map[string]interface{}{
 		"foo": "111",
 		"bar": []byte("bbb"),
-		"baz": TagFunc(func(w io.Writer) (int, error) { return w.Write([]byte("zzz")) }),
+		"baz": TagFunc(func(w io.Writer, tag string) (int, error) { return w.Write([]byte(tag)) }),
 	})
-	result := "foo111barbbbbazzzz"
+	result := "foo111barbbbbazbaz"
 	if s != result {
 		t.Fatalf("unexpected template value %q. Expected %q", s, result)
 	}

@@ -23,8 +23,8 @@ func ExampleTemplate() {
 
 		// TagFunc - flexible value. TagFunc is called only if the given
 		// tag exists in the template.
-		"query": TagFunc(func(w io.Writer) (int, error) {
-			return w.Write([]byte(url.QueryEscape("hello=world")))
+		"query": TagFunc(func(w io.Writer, tag string) (int, error) {
+			return w.Write([]byte(url.QueryEscape(tag + "=world")))
 		}),
 	}
 
@@ -32,7 +32,7 @@ func ExampleTemplate() {
 	fmt.Printf("%s", s)
 
 	// Output:
-	// http://google.com/?foo=foobarfoobar&q=hello%3Dworld&baz=
+	// http://google.com/?foo=foobarfoobar&q=query%3Dworld&baz=
 }
 
 func ExampleTagFunc() {
@@ -47,7 +47,7 @@ func ExampleTagFunc() {
 		// Always wrap the function into TagFunc.
 		//
 		// "baz" tag function writes bazSlice contents into w.
-		"baz": TagFunc(func(w io.Writer) (int, error) {
+		"baz": TagFunc(func(w io.Writer, tag string) (int, error) {
 			var nn int
 			for _, x := range bazSlice {
 				n, err := w.Write(x)
@@ -65,4 +65,26 @@ func ExampleTagFunc() {
 
 	// Output:
 	// foo123456789bar
+}
+
+func ExampleTemplate_ExecuteFuncString() {
+	template := "Hello, [user]! You won [prize]!!! [foobar]"
+	t, err := NewTemplate(template, "[", "]")
+	if err != nil {
+		log.Fatalf("unexpected error when parsing template: %s", err)
+	}
+	s := t.ExecuteFuncString(func(w io.Writer, tag string) (int, error) {
+		switch tag {
+		case "user":
+			return w.Write([]byte("John"))
+		case "prize":
+			return w.Write([]byte("$100500"))
+		default:
+			return w.Write([]byte(fmt.Sprintf("[unknown tag %q]", tag)))
+		}
+	})
+	fmt.Printf("%s", s)
+
+	// Output:
+	// Hello, John! You won $100500!!! [unknown tag "foobar"]
 }

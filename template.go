@@ -1,3 +1,9 @@
+// Package fasttemplate implements simple and fast template library.
+//
+// Fasttemplate is faster than text/template, strings.Replace
+// and strings.Replacer.
+//
+// Fasttemplate ideally fits for fast and simple placeholders' substitutions.
 package fasttemplate
 
 import (
@@ -52,24 +58,26 @@ func NewTemplate(template, startTag, endTag string) (*Template, error) {
 		s = s[n+len(b):]
 	}
 
+	t.bytesBufferPool.New = newBytesBuffer
 	return &t, nil
 }
 
-// TagFunc can be used as a substitution value in the map passed to Execute*.
-//
-// It must write contents to w and return the number of bytes written.
-type TagFunc func(w io.Writer) (int, error)
+func newBytesBuffer() interface{} {
+	return &bytes.Buffer{}
+}
 
-// Execute substitutes template tags (placeholders) with the corresponding
-// values from the map m and writes the result to the given writer w.
+// TagFunc can be used as a substitution value in the map passed to Execute*.
+// Execute* functions passes tag (placeholder) name in 'tag' argument.
 //
-// Substitution map m may contain values with the following types:
-//   * []byte - the fastest value type
-//   * string - convenient value type
-//   * TagFunc - flexible value type
+// TagFunc must be safe to call from concurrently running goroutines.
+//
+// TagFunc must write contents to w and return the number of bytes written.
+type TagFunc func(w io.Writer, tag string) (int, error)
+
+// ExecuteFunc calls f on each template tag (placeholder) occurence.
 //
 // Returns the number of bytes written to w.
-func (t *Template) Execute(w io.Writer, m map[string]interface{}) (int64, error) {
+func (t *Template) ExecuteFunc(w io.Writer, f TagFunc) (int64, error) {
 	var nn int64
 
 	n := len(t.texts) - 1
@@ -80,22 +88,7 @@ func (t *Template) Execute(w io.Writer, m map[string]interface{}) (int64, error)
 		}
 		nn += int64(ni)
 
-		k := t.tags[i]
-		v := m[k]
-		if v == nil {
-			continue
-		}
-		switch value := v.(type) {
-		case []byte:
-			ni, err = w.Write(value)
-		case string:
-			ni, err = w.Write([]byte(value))
-		case TagFunc:
-			ni, err = value(w)
-		default:
-			panic(fmt.Sprintf("key=%q contains unexpected value type=%#v. Expected []byte, string or TagFunc", k, v))
-		}
-		if err != nil {
+		if ni, err = f(w, t.tags[i]); err != nil {
 			return nn, err
 		}
 		nn += int64(ni)
@@ -108,6 +101,34 @@ func (t *Template) Execute(w io.Writer, m map[string]interface{}) (int64, error)
 	return nn, nil
 }
 
+// Execute substitutes template tags (placeholders) with the corresponding
+// values from the map m and writes the result to the given writer w.
+//
+// Substitution map m may contain values with the following types:
+//   * []byte - the fastest value type
+//   * string - convenient value type
+//   * TagFunc - flexible value type
+//
+// Returns the number of bytes written to w.
+func (t *Template) Execute(w io.Writer, m map[string]interface{}) (int64, error) {
+	return t.ExecuteFunc(w, func(w io.Writer, tag string) (int, error) { return stdTagFunc(w, tag, m) })
+}
+
+// ExecuteFuncString call f on each template tag (placeholder) occurence
+// and substitutes it with the data written to TagFunc's w.
+//
+// Returns the resulting string.
+func (t *Template) ExecuteFuncString(f TagFunc) string {
+	w := t.bytesBufferPool.Get().(*bytes.Buffer)
+	if _, err := t.ExecuteFunc(w, f); err != nil {
+		panic(fmt.Sprintf("unexpected error: %s", err))
+	}
+	s := string(w.Bytes())
+	w.Reset()
+	t.bytesBufferPool.Put(w)
+	return s
+}
+
 // ExecuteString substitutes template tags (placeholders) with the corresponding
 // values from the map m and returns the result.
 //
@@ -117,19 +138,22 @@ func (t *Template) Execute(w io.Writer, m map[string]interface{}) (int64, error)
 //   * TagFunc - flexible value type
 //
 func (t *Template) ExecuteString(m map[string]interface{}) string {
-	var w *bytes.Buffer
-	wv := t.bytesBufferPool.Get()
-	if wv == nil {
-		w = &bytes.Buffer{}
-	} else {
-		w = wv.(*bytes.Buffer)
+	return t.ExecuteFuncString(func(w io.Writer, tag string) (int, error) { return stdTagFunc(w, tag, m) })
+}
+
+func stdTagFunc(w io.Writer, tag string, m map[string]interface{}) (int, error) {
+	v := m[tag]
+	if v == nil {
+		return 0, nil
 	}
-	_, err := t.Execute(w, m)
-	if err != nil {
-		panic(fmt.Sprintf("unexpected error: %s", err))
+	switch value := v.(type) {
+	case []byte:
+		return w.Write(value)
+	case string:
+		return w.Write([]byte(value))
+	case TagFunc:
+		return value(w, tag)
+	default:
+		panic(fmt.Sprintf("tag=%q contains unexpected value type=%#v. Expected []byte, string or TagFunc", tag, v))
 	}
-	s := string(w.Bytes())
-	w.Reset()
-	t.bytesBufferPool.Put(w)
-	return s
 }
