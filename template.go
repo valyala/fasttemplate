@@ -67,7 +67,7 @@ func newBytesBuffer() interface{} {
 }
 
 // TagFunc can be used as a substitution value in the map passed to Execute*.
-// Execute* functions passe tag (placeholder) name in 'tag' argument.
+// Execute* functions pass tag (placeholder) name in 'tag' argument.
 //
 // TagFunc must be safe to call from concurrently running goroutines.
 //
