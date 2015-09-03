@@ -7,24 +7,25 @@ Fasttemplate peforms only a single task - it substitutes template placeholders
 with user-defined values. At high speed :)
 
 Fasttemplate is faster than [text/template](http://golang.org/pkg/text/template/),
-[strings.Replace](http://golang.org/pkg/strings/#Replace)
-and [strings.Replacer](http://golang.org/pkg/strings/#Replacer) on placeholders'
-substitution.
+[strings.Replace](http://golang.org/pkg/strings/#Replace),
+[strings.Replacer](http://golang.org/pkg/strings/#Replacer)
+and [fmt.Fprintf](https://golang.org/pkg/fmt/#Fprintf) on placeholders' substitution.
 
 Below are benchmark results comparing fasttemplate performance to text/template,
-strings.Replace and strings.Replacer:
+strings.Replace, strings.Replacer and fmt.Fprintf:
 
 ```
 $ go test -bench=. -benchmem
 PASS
-BenchmarkStringsReplace-4               	  500000	      2889 ns/op	    1824 B/op	      14 allocs/op
-BenchmarkStringsReplacer-4              	  500000	      2700 ns/op	    2256 B/op	      23 allocs/op
-BenchmarkTextTemplate-4                 	  500000	      3089 ns/op	     336 B/op	      19 allocs/op
-BenchmarkFastTemplateExecuteFunc-4      	 5000000	       333 ns/op	       0 B/op	       0 allocs/op
-BenchmarkFastTemplateExecute-4          	 5000000	       381 ns/op	       0 B/op	       0 allocs/op
-BenchmarkFastTemplateExecuteFuncString-4	 3000000	       508 ns/op	     144 B/op	       1 allocs/op
-BenchmarkFastTemplateExecuteString-4    	 3000000	       552 ns/op	     144 B/op	       1 allocs/op
-BenchmarkFastTemplateExecuteTagFunc-4   	 2000000	       709 ns/op	     144 B/op	       3 allocs/op
+BenchmarkFmtFprintf-4                   	 2000000	       790 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStringsReplace-4               	  500000	      3474 ns/op	    2112 B/op	      14 allocs/op
+BenchmarkStringsReplacer-4              	  500000	      2657 ns/op	    2256 B/op	      23 allocs/op
+BenchmarkTextTemplate-4                 	  500000	      3333 ns/op	     336 B/op	      19 allocs/op
+BenchmarkFastTemplateExecuteFunc-4      	 5000000	       349 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFastTemplateExecute-4          	 3000000	       383 ns/op	       0 B/op	       0 allocs/op
+BenchmarkFastTemplateExecuteFuncString-4	 3000000	       549 ns/op	     144 B/op	       1 allocs/op
+BenchmarkFastTemplateExecuteString-4    	 3000000	       572 ns/op	     144 B/op	       1 allocs/op
+BenchmarkFastTemplateExecuteTagFunc-4   	 2000000	       743 ns/op	     144 B/op	       3 allocs/op
 ```
 
 

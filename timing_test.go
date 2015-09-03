@@ -2,6 +2,7 @@ package fasttemplate
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/url"
 	"strings"
@@ -34,6 +35,22 @@ func map2slice(m map[string]interface{}) []string {
 		a = append(a, "{{"+k+"}}", string(v.([]byte)))
 	}
 	return a
+}
+
+func BenchmarkFmtFprintf(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		var w bytes.Buffer
+		for pb.Next() {
+			fmt.Fprintf(&w,
+				"http://%[5]s.foo.bar.com/?cb=%[1]s%[2]s&width=%[2]s&height=%[3]s&timeout=%[4]s&uid=%[5]s&subid=%[6]s&ref=%[7]s",
+				m["cb"], m["width"], m["height"], m["timeout"], m["uid"], m["subid"], m["ref"])
+			x := w.Bytes()
+			if !bytes.Equal(x, resultBytes) {
+				b.Fatalf("Unexpected result\n%q\nExpected\n%q\n", x, result)
+			}
+			w.Reset()
+		}
+	})
 }
 
 func BenchmarkStringsReplace(b *testing.B) {
