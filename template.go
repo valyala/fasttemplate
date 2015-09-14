@@ -21,6 +21,22 @@ type Template struct {
 	bytesBufferPool sync.Pool
 }
 
+// New parses the given template using the given startTag and endTag
+// as tag start and tag end.
+//
+// The returned template can be executed by concurrently running goroutines
+// using Execute* methods.
+//
+// New panics if the given template cannot be parsed. Use NewTemplate instead
+// if template may contain errors.
+func New(template, startTag, endTag string) *Template {
+	t, err := NewTemplate(template, startTag, endTag)
+	if err != nil {
+		panic(err)
+	}
+	return t
+}
+
 // NewTemplate parses the given template using the given startTag and endTag
 // as tag start and tag end.
 //

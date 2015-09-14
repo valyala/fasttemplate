@@ -9,10 +9,7 @@ import (
 
 func ExampleTemplate() {
 	template := "http://{{host}}/?foo={{bar}}{{bar}}&q={{query}}&baz={{baz}}"
-	t, err := NewTemplate(template, "{{", "}}")
-	if err != nil {
-		log.Fatalf("unexpected error when parsing template: %s", err)
-	}
+	t := New(template, "{{", "}}")
 
 	// Substitution map.
 	// Since "baz" tag is missing in the map, it will be substituted

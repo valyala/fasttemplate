@@ -6,10 +6,7 @@ import (
 )
 
 func TestEmptyTemplate(t *testing.T) {
-	tpl, err := NewTemplate("", "[", "]")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	tpl := New("", "[", "]")
 
 	s := tpl.ExecuteString(map[string]interface{}{"foo": "bar", "aaa": "bbb"})
 	if s != "" {
@@ -27,10 +24,7 @@ func TestEmptyTagEnd(t *testing.T) {
 
 func TestNoTags(t *testing.T) {
 	template := "foobar"
-	tpl, err := NewTemplate(template, "[", "]")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	tpl := New(template, "[", "]")
 
 	s := tpl.ExecuteString(map[string]interface{}{"foo": "bar", "aaa": "bbb"})
 	if s != template {
@@ -40,10 +34,7 @@ func TestNoTags(t *testing.T) {
 
 func TestEmptyTagName(t *testing.T) {
 	template := "foo[]bar"
-	tpl, err := NewTemplate(template, "[", "]")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	tpl := New(template, "[", "]")
 
 	s := tpl.ExecuteString(map[string]interface{}{"": "111", "aaa": "bbb"})
 	result := "foo111bar"
@@ -54,10 +45,7 @@ func TestEmptyTagName(t *testing.T) {
 
 func TestOnlyTag(t *testing.T) {
 	template := "[foo]"
-	tpl, err := NewTemplate(template, "[", "]")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	tpl := New(template, "[", "]")
 
 	s := tpl.ExecuteString(map[string]interface{}{"foo": "111", "aaa": "bbb"})
 	result := "111"
@@ -68,10 +56,7 @@ func TestOnlyTag(t *testing.T) {
 
 func TestStartWithTag(t *testing.T) {
 	template := "[foo]barbaz"
-	tpl, err := NewTemplate(template, "[", "]")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	tpl := New(template, "[", "]")
 
 	s := tpl.ExecuteString(map[string]interface{}{"foo": "111", "aaa": "bbb"})
 	result := "111barbaz"
@@ -82,10 +67,7 @@ func TestStartWithTag(t *testing.T) {
 
 func TestEndWithTag(t *testing.T) {
 	template := "foobar[foo]"
-	tpl, err := NewTemplate(template, "[", "]")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	tpl := New(template, "[", "]")
 
 	s := tpl.ExecuteString(map[string]interface{}{"foo": "111", "aaa": "bbb"})
 	result := "foobar111"
@@ -96,10 +78,7 @@ func TestEndWithTag(t *testing.T) {
 
 func TestDuplicateTags(t *testing.T) {
 	template := "[foo]bar[foo][foo]baz"
-	tpl, err := NewTemplate(template, "[", "]")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	tpl := New(template, "[", "]")
 
 	s := tpl.ExecuteString(map[string]interface{}{"foo": "111", "aaa": "bbb"})
 	result := "111bar111111baz"
@@ -110,10 +89,7 @@ func TestDuplicateTags(t *testing.T) {
 
 func TestMultipleTags(t *testing.T) {
 	template := "foo[foo]aa[aaa]ccc"
-	tpl, err := NewTemplate(template, "[", "]")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	tpl := New(template, "[", "]")
 
 	s := tpl.ExecuteString(map[string]interface{}{"foo": "111", "aaa": "bbb"})
 	result := "foo111aabbbccc"
@@ -124,10 +100,7 @@ func TestMultipleTags(t *testing.T) {
 
 func TestLongDelimiter(t *testing.T) {
 	template := "foo{{{foo}}}bar"
-	tpl, err := NewTemplate(template, "{{{", "}}}")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	tpl := New(template, "{{{", "}}}")
 
 	s := tpl.ExecuteString(map[string]interface{}{"foo": "111", "aaa": "bbb"})
 	result := "foo111bar"
@@ -138,10 +111,7 @@ func TestLongDelimiter(t *testing.T) {
 
 func TestIdenticalDelimiter(t *testing.T) {
 	template := "foo@foo@foo@aaa@"
-	tpl, err := NewTemplate(template, "@", "@")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	tpl := New(template, "@", "@")
 
 	s := tpl.ExecuteString(map[string]interface{}{"foo": "111", "aaa": "bbb"})
 	result := "foo111foobbb"
@@ -152,10 +122,7 @@ func TestIdenticalDelimiter(t *testing.T) {
 
 func TestDlimitersWithDistinctSize(t *testing.T) {
 	template := "foo<?phpaaa?>bar<?phpzzz?>"
-	tpl, err := NewTemplate(template, "<?php", "?>")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	tpl := New(template, "<?php", "?>")
 
 	s := tpl.ExecuteString(map[string]interface{}{"zzz": "111", "aaa": "bbb"})
 	result := "foobbbbar111"
@@ -166,10 +133,7 @@ func TestDlimitersWithDistinctSize(t *testing.T) {
 
 func TestEmptyValue(t *testing.T) {
 	template := "foobar[foo]"
-	tpl, err := NewTemplate(template, "[", "]")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	tpl := New(template, "[", "]")
 
 	s := tpl.ExecuteString(map[string]interface{}{"foo": "", "aaa": "bbb"})
 	result := "foobar"
@@ -180,10 +144,7 @@ func TestEmptyValue(t *testing.T) {
 
 func TestNoValue(t *testing.T) {
 	template := "foobar[foo]x[aaa]"
-	tpl, err := NewTemplate(template, "[", "]")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	tpl := New(template, "[", "]")
 
 	s := tpl.ExecuteString(map[string]interface{}{"aaa": "bbb"})
 	result := "foobarxbbb"
@@ -198,14 +159,13 @@ func TestNoEndDelimiter(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected non-nil error. got nil")
 	}
+
+	expectPanic(t, func() { New(template, "[", "]") })
 }
 
 func TestUnsupportedValue(t *testing.T) {
 	template := "foobar[foo]"
-	tpl, err := NewTemplate(template, "[", "]")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	tpl := New(template, "[", "]")
 
 	expectPanic(t, func() {
 		tpl.ExecuteString(map[string]interface{}{"foo": 123, "aaa": "bbb"})
@@ -214,10 +174,7 @@ func TestUnsupportedValue(t *testing.T) {
 
 func TestMixedValues(t *testing.T) {
 	template := "foo[foo]bar[bar]baz[baz]"
-	tpl, err := NewTemplate(template, "[", "]")
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
+	tpl := New(template, "[", "]")
 
 	s := tpl.ExecuteString(map[string]interface{}{
 		"foo": "111",

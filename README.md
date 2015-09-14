@@ -40,10 +40,7 @@ Usage
 
 ```go
 	template := "http://{{host}}/?q={{query}}&foo={{bar}}{{bar}}"
-	t, err := fasttemplate.NewTemplate(template, "{{", "}}")
-	if err != nil {
-		log.Fatalf("unexpected error when parsing template: %s", err)
-	}
+	t := fasttemplate.New(template, "{{", "}}")
 	s := t.ExecuteString(map[string]interface{}{
 		"host":  "google.com",
 		"query": url.QueryEscape("hello=world"),
