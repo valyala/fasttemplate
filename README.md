@@ -6,6 +6,10 @@ Simple and fast template library for Go.
 Fasttemplate peforms only a single task - it substitutes template placeholders
 with user-defined values. At high speed :)
 
+*Please note that fasttemplate doesn't do any escaping on template values
+unlike [html/template](http://golang.org/pkg/html/template/) do. So values
+must be properly escaped before passing them to fasttemplate.*
+
 Fasttemplate is faster than [text/template](http://golang.org/pkg/text/template/),
 [strings.Replace](http://golang.org/pkg/strings/#Replace),
 [strings.Replacer](http://golang.org/pkg/strings/#Replacer)
