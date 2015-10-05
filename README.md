@@ -1,7 +1,7 @@
 fasttemplate
 ============
 
-Simple and fast template library for Go.
+Simple and fast template engine for Go.
 
 Fasttemplate peforms only a single task - it substitutes template placeholders
 with user-defined values. At high speed :)
