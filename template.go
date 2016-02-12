@@ -90,7 +90,7 @@ func newBytesBuffer() interface{} {
 // TagFunc must write contents to w and return the number of bytes written.
 type TagFunc func(w io.Writer, tag string) (int, error)
 
-// ExecuteFunc calls f on each template tag (placeholder) occurence.
+// ExecuteFunc calls f on each template tag (placeholder) occurrence.
 //
 // Returns the number of bytes written to w.
 func (t *Template) ExecuteFunc(w io.Writer, f TagFunc) (int64, error) {
@@ -130,7 +130,7 @@ func (t *Template) Execute(w io.Writer, m map[string]interface{}) (int64, error)
 	return t.ExecuteFunc(w, func(w io.Writer, tag string) (int, error) { return stdTagFunc(w, tag, m) })
 }
 
-// ExecuteFuncString call f on each template tag (placeholder) occurence
+// ExecuteFuncString call f on each template tag (placeholder) occurrence
 // and substitutes it with the data written to TagFunc's w.
 //
 // Returns the resulting string.
