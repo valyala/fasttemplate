@@ -48,7 +48,6 @@ func New(template, startTag, endTag string) *Template {
 // using Execute* methods.
 func NewTemplate(template, startTag, endTag string) (*Template, error) {
 	var t Template
-	t.bytesBufferPool.New = newBytesBuffer
 	err := t.Reset(template, startTag, endTag)
 	if err != nil {
 		return nil, err
@@ -77,6 +76,7 @@ type TagFunc func(w io.Writer, tag string) (int, error)
 func (t *Template) Reset(template, startTag, endTag string) error {
 	// Keep these vars in t, so GC won't collect them and won't break
 	// vars derived via unsafe*
+	t.bytesBufferPool.New = newBytesBuffer
 	t.template = template
 	t.startTag = startTag
 	t.endTag = endTag
