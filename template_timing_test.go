@@ -229,3 +229,20 @@ func BenchmarkFastTemplateExecuteTagFunc(b *testing.B) {
 		}
 	})
 }
+
+func BenchmarkNewTemplate(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_ = New(source, "{{", "}}")
+		}
+	})
+}
+
+func BenchmarkTemplateReset(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		t := New(source, "{{", "}}")
+		for pb.Next() {
+			t.Reset(source, "{{", "}}")
+		}
+	})
+}
