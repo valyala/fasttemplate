@@ -81,6 +81,11 @@ func Execute(template, startTag, endTag string, w io.Writer, m map[string]interf
 // This function is optimized for constantly changing templates.
 // Use Template.ExecuteFuncString for frozen templates.
 func ExecuteFuncString(template, startTag, endTag string, f TagFunc) string {
+	tagsCount := bytes.Count(unsafeString2Bytes(template), unsafeString2Bytes(startTag))
+	if tagsCount == 0 {
+		return template
+	}
+
 	bb := byteBufferPool.Get()
 	if _, err := ExecuteFunc(template, startTag, endTag, bb, f); err != nil {
 		panic(fmt.Sprintf("unexpected error: %s", err))
