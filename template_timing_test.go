@@ -119,15 +119,11 @@ func BenchmarkFastTemplateExecuteFunc(b *testing.B) {
 		b.Fatalf("error in template: %s", err)
 	}
 
-	f := func(w io.Writer, tag string) (int, error) {
-		return w.Write(m[tag].([]byte))
-	}
-
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		var w bytes.Buffer
 		for pb.Next() {
-			if _, err := t.ExecuteFunc(&w, f); err != nil {
+			if _, err := t.ExecuteFunc(&w, testTagFunc); err != nil {
 				b.Fatalf("unexpected error: %s", err)
 			}
 			x := w.Bytes()
@@ -167,14 +163,10 @@ func BenchmarkFastTemplateExecuteFuncString(b *testing.B) {
 		b.Fatalf("error in template: %s", err)
 	}
 
-	f := func(w io.Writer, tag string) (int, error) {
-		return w.Write(m[tag].([]byte))
-	}
-
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			x := t.ExecuteFuncString(f)
+			x := t.ExecuteFuncString(testTagFunc)
 			if x != result {
 				b.Fatalf("unexpected result\n%q\nExpected\n%q\n", x, result)
 			}
@@ -245,4 +237,30 @@ func BenchmarkTemplateReset(b *testing.B) {
 			t.Reset(source, "{{", "}}")
 		}
 	})
+}
+
+func BenchmarkTemplateResetExecuteFunc(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		t := New(source, "{{", "}}")
+		var w bytes.Buffer
+		for pb.Next() {
+			t.Reset(source, "{{", "}}")
+			t.ExecuteFunc(&w, testTagFunc)
+			w.Reset()
+		}
+	})
+}
+
+func BenchmarkExecuteFunc(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		var bb bytes.Buffer
+		for pb.Next() {
+			ExecuteFunc(source, "{{", "}}", &bb, testTagFunc)
+			bb.Reset()
+		}
+	})
+}
+
+func testTagFunc(w io.Writer, tag string) (int, error) {
+	return w.Write(m[tag].([]byte))
 }
