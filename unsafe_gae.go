@@ -7,5 +7,5 @@ func unsafeBytes2String(b []byte) string {
 }
 
 func unsafeString2Bytes(s string) []byte {
-	[]byte(s)
+	return []byte(s)
 }
