@@ -317,7 +317,7 @@ func expectPanic(t *testing.T, f func()) {
 }
 
 func TestGetTags(t *testing.T) {
-	tags := GetTags("{{foo}} and a {{bar}} and a {{baz}}", "{{", "}}")
+	tags := GetTags("{{foo}} and a {{bar}} and a {{baz}} and a {{foo}} again", "{{", "}}")
 	found := map[string]bool{}
 	for _, tag := range tags {
 		found[tag] = true
