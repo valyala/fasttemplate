@@ -9,8 +9,9 @@ package fasttemplate
 import (
 	"bytes"
 	"fmt"
-	"github.com/valyala/bytebufferpool"
 	"io"
+
+	"github.com/valyala/bytebufferpool"
 )
 
 // ExecuteFunc calls f on each template tag (placeholder) occurrence.
@@ -55,6 +56,37 @@ func ExecuteFunc(template, startTag, endTag string, w io.Writer, f TagFunc) (int
 	nn += int64(ni)
 
 	return nn, err
+}
+
+// GetTags parses the template and returns a slice of all the tag names, deduplicated.
+func GetTags(template, startTag, endTag string) []string {
+	unparsedBytes := unsafeString2Bytes(template)
+	a := unsafeString2Bytes(startTag)
+	b := unsafeString2Bytes(endTag)
+
+	tags := map[string]bool{}
+	for {
+		n := bytes.Index(unparsedBytes, a)
+		if n < 0 {
+			break
+		}
+
+		unparsedBytes = unparsedBytes[n+len(a):]
+		n = bytes.Index(unparsedBytes, b)
+		if n < 0 {
+			// cannot find end tag
+			break
+		}
+
+		tags[unsafeBytes2String(unparsedBytes[:n])] = true
+		unparsedBytes = unparsedBytes[n+len(b):]
+	}
+
+	var out []string
+	for t := range tags {
+		out = append(out, t)
+	}
+	return out
 }
 
 // Execute substitutes template tags (placeholders) with the corresponding

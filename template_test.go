@@ -315,3 +315,20 @@ func expectPanic(t *testing.T, f func()) {
 	}()
 	f()
 }
+
+func TestGetTags(t *testing.T) {
+	tags := GetTags("{{foo}} and a {{bar}} and a {{baz}}", "{{", "}}")
+	found := map[string]bool{}
+	for _, tag := range tags {
+		found[tag] = true
+	}
+	if len(found) != 3 {
+		t.Fatalf("should have 3 tags, but has %d", len(found))
+	}
+
+	for _, tag := range []string{"foo", "bar", "baz"} {
+		if !found[tag] {
+			t.Fatalf("%s not found", tag)
+		}
+	}
+}
