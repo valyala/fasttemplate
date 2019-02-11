@@ -7,22 +7,6 @@ import (
 	"net/url"
 )
 
-func ExampleComplex() {
-	template := "text1 {{ {{{{foo}}}} }} text2 {{ {{||bar}}|| }} text3"
-	t, _ := NewTemplate(template, "{{", "}}")
-
-	m := map[string]interface{}{
-		"{{{{foo}}}}": "foo replaced", // string - convenient
-		"{{||bar}}||": "bar replaced", // byte slice - the fastest
-	}
-
-	s := t.ExecuteString(m)
-	fmt.Printf("%s", s)
-
-	// Output:
-	// text1 foo replaced text2 bar replaced text3
-}
-
 func ExampleTemplate() {
 	template := "http://{{host}}/?foo={{bar}}{{bar}}&q={{query}}&baz={{baz}}"
 	t := New(template, "{{", "}}")
@@ -100,4 +84,20 @@ func ExampleTemplate_ExecuteFuncString() {
 
 	// Output:
 	// Hello, John! You won $100500!!! [unknown tag "foobar"]
+}
+
+func ExampleComplex() {
+	template := "text1 {{ {{{{foo}}}} }} text2 {{ {{||bar}}|| }} text3"
+	t, _ := NewTemplate(template, "{{", "}}")
+
+	m := map[string]interface{}{
+		"{{{{foo}}}}": "foo replaced", // string - convenient
+		"{{||bar}}||": "bar replaced", // byte slice - the fastest
+	}
+
+	s := t.ExecuteString(m)
+	fmt.Printf("%s", s)
+
+	// Output:
+	// text1 foo replaced text2 bar replaced text3
 }
