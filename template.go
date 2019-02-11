@@ -209,14 +209,30 @@ func (t *Template) Reset(template, startTag, endTag string) error {
 		t.texts = append(t.texts, s[:n])
 
 		s = s[n+len(a):]
-		n = bytes.Index(s, b)
+
+		c := bytes.Index(s, a)
+		d := bytes.Index(s, b)
+		for (c < d) && (c > -1) {
+			s = s[c+len(a):]
+			c = bytes.Index(s, a)
+			d = bytes.Index(s, b)
+		}
+
+		nNext := bytes.Index(s, a)
+		if nNext < 0 {
+			nNext = len(s)
+		}
+
+		n = bytes.LastIndex(s[:nNext], b)
 		if n < 0 {
 			return fmt.Errorf("Cannot find end tag=%q in the template=%q starting from %q", endTag, template, s)
 		}
 
-		t.tags = append(t.tags, unsafeBytes2String(s[:n]))
+		t.tags = append(t.tags, unsafeBytes2String(bytes.TrimSpace(s[:n])))
 		s = s[n+len(b):]
 	}
+	fmt.Println("texts: ", t.texts)
+	fmt.Println("tags: ", t.tags)
 
 	return nil
 }
