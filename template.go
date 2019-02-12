@@ -9,8 +9,10 @@ package fasttemplate
 import (
 	"bytes"
 	"fmt"
-	"github.com/valyala/bytebufferpool"
 	"io"
+	"reflect"
+
+	"github.com/valyala/bytebufferpool"
 )
 
 // ExecuteFunc calls f on each template tag (placeholder) occurrence.
@@ -80,20 +82,22 @@ func Execute(template, startTag, endTag string, w io.Writer, m map[string]interf
 //
 // This function is optimized for constantly changing templates.
 // Use Template.ExecuteFuncString for frozen templates.
-func ExecuteFuncString(template, startTag, endTag string, f TagFunc) string {
+func ExecuteFuncString(template, startTag, endTag string, f TagFunc) (string, error) {
+	var s string
+
 	tagsCount := bytes.Count(unsafeString2Bytes(template), unsafeString2Bytes(startTag))
 	if tagsCount == 0 {
-		return template
+		return template, nil
 	}
 
 	bb := byteBufferPool.Get()
 	if _, err := ExecuteFunc(template, startTag, endTag, bb, f); err != nil {
-		panic(fmt.Sprintf("unexpected error: %s", err))
+		return s, err
 	}
-	s := string(bb.B)
+	s = string(bb.B)
 	bb.Reset()
 	byteBufferPool.Put(bb)
-	return s
+	return s, nil
 }
 
 var byteBufferPool bytebufferpool.Pool
@@ -108,7 +112,7 @@ var byteBufferPool bytebufferpool.Pool
 //
 // This function is optimized for constantly changing templates.
 // Use Template.ExecuteString for frozen templates.
-func ExecuteString(template, startTag, endTag string, m map[string]interface{}) string {
+func ExecuteString(template, startTag, endTag string, m map[string]interface{}) (string, error) {
 	return ExecuteFuncString(template, startTag, endTag, func(w io.Writer, tag string) (int, error) { return stdTagFunc(w, tag, m) })
 }
 
@@ -178,17 +182,17 @@ func (t *Template) Reset(template, startTag, endTag string) error {
 	t.tags = t.tags[:0]
 
 	if len(startTag) == 0 {
-		panic("startTag cannot be empty")
+		return ErrEmptyStartTag
 	}
 	if len(endTag) == 0 {
-		panic("endTag cannot be empty")
+		return ErrEmptyEndTag
 	}
 
-	s := unsafeString2Bytes(template)
-	a := unsafeString2Bytes(startTag)
-	b := unsafeString2Bytes(endTag)
+	templateBytes := unsafeString2Bytes(template)
+	startTagBytes := unsafeString2Bytes(startTag)
+	endTagBytes := unsafeString2Bytes(endTag)
 
-	tagsCount := bytes.Count(s, a)
+	tagsCount := bytes.Count(templateBytes, startTagBytes)
 	if tagsCount == 0 {
 		return nil
 	}
@@ -201,40 +205,50 @@ func (t *Template) Reset(template, startTag, endTag string) error {
 	}
 
 	for {
-		n := bytes.Index(s, a)
+		n := bytes.Index(templateBytes, startTagBytes)
 		if n < 0 {
-			t.texts = append(t.texts, s)
+			t.texts = append(t.texts, templateBytes)
 			break
 		}
-		t.texts = append(t.texts, s[:n])
+		t.texts = append(t.texts, templateBytes[:n])
 
-		s = s[n+len(a):]
+		templateBytes = templateBytes[n+len(startTagBytes):]
 
-		c := bytes.Index(s, a)
-		d := bytes.Index(s, b)
-		var e []byte
-		for (c < d) && (c > -1) {
-			e = append(e, s[:c+len(a)]...)
-			s = s[c+len(a):]
-			c = bytes.Index(s, a)
-			d = bytes.Index(s, b)
+		startTagIdx := bytes.Index(templateBytes, startTagBytes)
+		endTagIdx := bytes.Index(templateBytes, endTagBytes)
+		var missingTag []byte
+		for (startTagIdx < endTagIdx) && (startTagIdx > -1) {
+			missingTag = append(missingTag, templateBytes[:startTagIdx+len(startTagBytes)]...)
+			templateBytes = templateBytes[startTagIdx+len(startTagBytes):]
+			startTagIdx = bytes.Index(templateBytes, startTagBytes)
+			endTagIdx = bytes.Index(templateBytes, endTagBytes)
 		}
 
-		nNext := bytes.Index(s, a)
+		nNext := bytes.Index(templateBytes, startTagBytes)
 		if nNext < 0 {
-			nNext = len(s)
+			nNext = len(templateBytes)
 		}
 
-		n = bytes.LastIndex(s[:nNext], b)
+		if reflect.DeepEqual(startTagBytes, endTagBytes) {
+			sRemaining := templateBytes[nNext+len(startTagBytes):]
+
+			nNextNext := secondIndex(sRemaining, startTagBytes)
+			if nNextNext < 0 {
+				nNext = len(templateBytes)
+			} else {
+				nNext = nNextNext
+			}
+		}
+
+		n = bytes.LastIndex(templateBytes[:nNext], endTagBytes)
 		if n < 0 {
-			return fmt.Errorf("Cannot find end tag=%q in the template=%q starting from %q", endTag, template, s)
+			return fmt.Errorf("cannot find end tag=%q in the template=%q starting from %q", endTag, template, templateBytes)
 		}
 
-		tag := append(e, s[:n]...)
+		tag := append(missingTag, templateBytes[:n]...)
 		t.tags = append(t.tags, unsafeBytes2String(bytes.TrimSpace(tag)))
-		s = s[n+len(b):]
+		templateBytes = templateBytes[n+len(endTagBytes):]
 	}
-
 	return nil
 }
 
@@ -291,15 +305,16 @@ func (t *Template) Execute(w io.Writer, m map[string]interface{}) (int64, error)
 //
 // This function is optimized for frozen templates.
 // Use ExecuteFuncString for constantly changing templates.
-func (t *Template) ExecuteFuncString(f TagFunc) string {
+func (t *Template) ExecuteFuncString(f TagFunc) (string, error) {
+	var s string
 	bb := t.byteBufferPool.Get()
 	if _, err := t.ExecuteFunc(bb, f); err != nil {
-		panic(fmt.Sprintf("unexpected error: %s", err))
+		return s, err
 	}
-	s := string(bb.Bytes())
+	s = string(bb.Bytes())
 	bb.Reset()
 	t.byteBufferPool.Put(bb)
-	return s
+	return s, nil
 }
 
 // ExecuteString substitutes template tags (placeholders) with the corresponding
@@ -312,7 +327,7 @@ func (t *Template) ExecuteFuncString(f TagFunc) string {
 //
 // This function is optimized for frozen templates.
 // Use ExecuteString for constantly changing templates.
-func (t *Template) ExecuteString(m map[string]interface{}) string {
+func (t *Template) ExecuteString(m map[string]interface{}) (string, error) {
 	return t.ExecuteFuncString(func(w io.Writer, tag string) (int, error) { return stdTagFunc(w, tag, m) })
 }
 
@@ -329,6 +344,22 @@ func stdTagFunc(w io.Writer, tag string, m map[string]interface{}) (int, error) 
 	case TagFunc:
 		return value(w, tag)
 	default:
-		panic(fmt.Sprintf("tag=%q contains unexpected value type=%#v. Expected []byte, string or TagFunc", tag, v))
+		return 0, ErrInvalidTag
 	}
+}
+
+func secondIndex(s, sep []byte) int {
+	n := bytes.Index(s, sep)
+	if n < 0 {
+		return -1 // not found
+	}
+
+	s = s[n+1:]
+	lenPrev := len(s[:n]) + 1
+	nSecond := bytes.Index(s, sep)
+	if nSecond < 0 {
+		return -1 // not found
+	}
+
+	return nSecond + lenPrev
 }

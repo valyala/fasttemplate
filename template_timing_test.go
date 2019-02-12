@@ -166,7 +166,7 @@ func BenchmarkFastTemplateExecuteFuncString(b *testing.B) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			x := t.ExecuteFuncString(testTagFunc)
+			x, _ := t.ExecuteFuncString(testTagFunc)
 			if x != result {
 				b.Fatalf("unexpected result\n%q\nExpected\n%q\n", x, result)
 			}
@@ -183,7 +183,7 @@ func BenchmarkFastTemplateExecuteString(b *testing.B) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			x := t.ExecuteString(m)
+			x, _ := t.ExecuteString(m)
 			if x != result {
 				b.Fatalf("unexpected result\n%q\nExpected\n%q\n", x, result)
 			}
