@@ -49,6 +49,9 @@ func ExecuteFunc(template, startTag, endTag string, w io.Writer, f TagFunc) (int
 
 		ni, err = f(w, unsafeBytes2String(s[:n]))
 		nn += int64(ni)
+		if err != nil {
+			return nn, err
+		}
 		s = s[n+len(b):]
 	}
 	ni, err = w.Write(s)
@@ -94,6 +97,27 @@ func ExecuteFuncString(template, startTag, endTag string, f TagFunc) string {
 	bb.Reset()
 	byteBufferPool.Put(bb)
 	return s
+}
+
+// ExecuteFuncStringWithErr is nearly the same as ExecuteFuncString
+// but when f returns an error, ExecuteFuncStringWithErr won't panic like ExecuteFuncString
+// it just returns an empty string and the error f returned
+func ExecuteFuncStringWithErr(template, startTag, endTag string, f TagFunc) (string, error) {
+	tagsCount := bytes.Count(unsafeString2Bytes(template), unsafeString2Bytes(startTag))
+	if tagsCount == 0 {
+		return template, nil
+	}
+
+	bb := byteBufferPool.Get()
+	if _, err := ExecuteFunc(template, startTag, endTag, bb, f); err != nil {
+		bb.Reset()
+		byteBufferPool.Put(bb)
+		return "", err
+	}
+	s := string(bb.B)
+	bb.Reset()
+	byteBufferPool.Put(bb)
+	return s, nil
 }
 
 var byteBufferPool bytebufferpool.Pool
@@ -283,6 +307,26 @@ func (t *Template) ExecuteFuncString(f TagFunc) string {
 	bb.Reset()
 	t.byteBufferPool.Put(bb)
 	return s
+}
+
+// ExecuteFuncString calls f on each template tag (placeholder) occurrence
+// and substitutes it with the data written to TagFunc's w.
+//
+// Returns the resulting string.
+//
+// This function is optimized for frozen templates.
+// Use ExecuteFuncString for constantly changing templates.
+func (t *Template) ExecuteFuncStringWithErr(f TagFunc) (string, error) {
+	bb := t.byteBufferPool.Get()
+	if _, err := t.ExecuteFunc(bb, f); err != nil {
+		bb.Reset()
+		t.byteBufferPool.Put(bb)
+		return "", err
+	}
+	s := string(bb.Bytes())
+	bb.Reset()
+	t.byteBufferPool.Put(bb)
+	return s, nil
 }
 
 // ExecuteString substitutes template tags (placeholders) with the corresponding
