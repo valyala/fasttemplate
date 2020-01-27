@@ -309,7 +309,7 @@ func (t *Template) ExecuteFuncString(f TagFunc) string {
 	return s
 }
 
-// ExecuteFuncString calls f on each template tag (placeholder) occurrence
+// ExecuteFuncStringWithErr calls f on each template tag (placeholder) occurrence
 // and substitutes it with the data written to TagFunc's w.
 //
 // Returns the resulting string.
