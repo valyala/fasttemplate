@@ -84,18 +84,10 @@ func Execute(template, startTag, endTag string, w io.Writer, m map[string]interf
 // This function is optimized for constantly changing templates.
 // Use Template.ExecuteFuncString for frozen templates.
 func ExecuteFuncString(template, startTag, endTag string, f TagFunc) string {
-	tagsCount := bytes.Count(unsafeString2Bytes(template), unsafeString2Bytes(startTag))
-	if tagsCount == 0 {
-		return template
-	}
-
-	bb := byteBufferPool.Get()
-	if _, err := ExecuteFunc(template, startTag, endTag, bb, f); err != nil {
+	s, err := ExecuteFuncStringWithErr(template, startTag, endTag, f)
+	if err != nil {
 		panic(fmt.Sprintf("unexpected error: %s", err))
 	}
-	s := string(bb.B)
-	bb.Reset()
-	byteBufferPool.Put(bb)
 	return s
 }
 
@@ -299,13 +291,10 @@ func (t *Template) Execute(w io.Writer, m map[string]interface{}) (int64, error)
 // This function is optimized for frozen templates.
 // Use ExecuteFuncString for constantly changing templates.
 func (t *Template) ExecuteFuncString(f TagFunc) string {
-	bb := t.byteBufferPool.Get()
-	if _, err := t.ExecuteFunc(bb, f); err != nil {
+	s, err := t.ExecuteFuncStringWithErr(f)
+	if err != nil {
 		panic(fmt.Sprintf("unexpected error: %s", err))
 	}
-	s := string(bb.Bytes())
-	bb.Reset()
-	t.byteBufferPool.Put(bb)
 	return s
 }
 
