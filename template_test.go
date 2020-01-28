@@ -2,6 +2,7 @@ package fasttemplate
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"testing"
 )
@@ -314,4 +315,64 @@ func expectPanic(t *testing.T, f func()) {
 		}
 	}()
 	f()
+}
+
+func TestExecuteFuncStringWithErr(t *testing.T) {
+	var expectErr = errors.New("test111")
+	result, err := ExecuteFuncStringWithErr(`{a} is {b}'s best friend`, "{", "}", func(w io.Writer, tag string) (int, error) {
+		if tag == "a" {
+			return w.Write([]byte("Alice"))
+		}
+		return 0, expectErr
+	})
+	if err != expectErr {
+		t.Fatalf("error must be the same as the error returned from f, expect: %s, actual: %s", expectErr, err)
+	}
+	if result != "" {
+		t.Fatalf("result should be an empty string if error occurred")
+	}
+	result, err = ExecuteFuncStringWithErr(`{a} is {b}'s best friend`, "{", "}", func(w io.Writer, tag string) (int, error) {
+		if tag == "a" {
+			return w.Write([]byte("Alice"))
+		}
+		return w.Write([]byte("Bob"))
+	})
+	if err != nil {
+		t.Fatalf("should success but found err: %s", err)
+	}
+	if result != "Alice is Bob's best friend" {
+		t.Fatalf("expect: %s, but: %s", "Alice is Bob's best friend", result)
+	}
+}
+
+func TestTpl_ExecuteFuncStringWithErr(t *testing.T) {
+	var expectErr = errors.New("test111")
+	tpl, err := NewTemplate(`{a} is {b}'s best friend`, "{", "}")
+	if err != nil {
+		t.Fatalf("should success, but found err: %s", err)
+	}
+	result, err := tpl.ExecuteFuncStringWithErr(func(w io.Writer, tag string) (int, error) {
+		if tag == "a" {
+			return w.Write([]byte("Alice"))
+		}
+		return 0, expectErr
+	})
+	if err != expectErr {
+		t.Fatalf("error must be the same as the error returned from f, expect: %s, actual: %s", expectErr, err)
+	}
+	if result != "" {
+		t.Fatalf("result should be an empty string if error occurred")
+	}
+	result, err = tpl.ExecuteFuncStringWithErr(func(w io.Writer, tag string) (int, error) {
+		if tag == "a" {
+			return w.Write([]byte("Alice"))
+		}
+		return w.Write([]byte("Bob"))
+	})
+	if err != nil {
+		t.Fatalf("should success but found err: %s", err)
+	}
+	if result != "Alice is Bob's best friend" {
+		t.Fatalf("expect: %s, but: %s", "Alice is Bob's best friend", result)
+	}
 }
