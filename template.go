@@ -332,6 +332,25 @@ func (t *Template) ExecuteString(m map[string]interface{}) string {
 	return t.ExecuteFuncString(func(w io.Writer, tag string) (int, error) { return stdTagFunc(w, tag, m) })
 }
 
+// Returns a list of tags, e.g. for UI display
+func (t *Template) Tags() []string {
+    var tags []string
+    isIn := func(v string) bool {
+        for _, t := range(tags) {
+            if v == t {
+                return true
+            }
+        }
+        return false
+    }
+    for _, t := range t.tags {
+        if !isIn(t) {
+            tags = append(tags, t)
+        }
+    }
+    return tags
+}
+
 func stdTagFunc(w io.Writer, tag string, m map[string]interface{}) (int, error) {
 	v := m[tag]
 	if v == nil {
