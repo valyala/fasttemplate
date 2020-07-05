@@ -11,12 +11,16 @@ import (
 )
 
 var (
-	source        = "http://{{uid}}.foo.bar.com/?cb={{cb}}{{width}}&width={{width}}&height={{height}}&timeout={{timeout}}&uid={{uid}}&subid={{subid}}&ref={{ref}}"
-	result        = "http://aaasdf.foo.bar.com/?cb=12341232&width=1232&height=123&timeout=123123&uid=aaasdf&subid=asdfds&ref=http://google.com/aaa/bbb/ccc"
-	resultEscaped = "http://aaasdf.foo.bar.com/?cb=12341232&width=1232&height=123&timeout=123123&uid=aaasdf&subid=asdfds&ref=http%3A%2F%2Fgoogle.com%2Faaa%2Fbbb%2Fccc"
+	source             = "http://{{uid}}.foo.bar.com/?cb={{cb}}{{width}}&width={{width}}&height={{height}}&timeout={{timeout}}&uid={{uid}}&subid={{subid}}&ref={{ref}}&empty={{empty}}"
+	result             = "http://aaasdf.foo.bar.com/?cb=12341232&width=1232&height=123&timeout=123123&uid=aaasdf&subid=asdfds&ref=http://google.com/aaa/bbb/ccc&empty="
+	resultEscaped      = "http://aaasdf.foo.bar.com/?cb=12341232&width=1232&height=123&timeout=123123&uid=aaasdf&subid=asdfds&ref=http%3A%2F%2Fgoogle.com%2Faaa%2Fbbb%2Fccc&empty="
+	resultStd          = "http://aaasdf.foo.bar.com/?cb=12341232&width=1232&height=123&timeout=123123&uid=aaasdf&subid=asdfds&ref=http://google.com/aaa/bbb/ccc&empty={{empty}}"
+	resultTextTemplate = "http://aaasdf.foo.bar.com/?cb=12341232&width=1232&height=123&timeout=123123&uid=aaasdf&subid=asdfds&ref=http://google.com/aaa/bbb/ccc&empty=<no value>"
 
-	resultBytes        = []byte(result)
-	resultEscapedBytes = []byte(resultEscaped)
+	resultBytes             = []byte(result)
+	resultEscapedBytes      = []byte(resultEscaped)
+	resultStdBytes          = []byte(resultStd)
+	resultTextTemplateBytes = []byte(resultTextTemplate)
 
 	m = map[string]interface{}{
 		"cb":      []byte("1234"),
@@ -42,7 +46,7 @@ func BenchmarkFmtFprintf(b *testing.B) {
 		var w bytes.Buffer
 		for pb.Next() {
 			fmt.Fprintf(&w,
-				"http://%[5]s.foo.bar.com/?cb=%[1]s%[2]s&width=%[2]s&height=%[3]s&timeout=%[4]s&uid=%[5]s&subid=%[6]s&ref=%[7]s",
+				"http://%[5]s.foo.bar.com/?cb=%[1]s%[2]s&width=%[2]s&height=%[3]s&timeout=%[4]s&uid=%[5]s&subid=%[6]s&ref=%[7]s&empty=",
 				m["cb"], m["width"], m["height"], m["timeout"], m["uid"], m["subid"], m["ref"])
 			x := w.Bytes()
 			if !bytes.Equal(x, resultBytes) {
@@ -63,8 +67,8 @@ func BenchmarkStringsReplace(b *testing.B) {
 			for i := 0; i < len(mSlice); i += 2 {
 				x = strings.Replace(x, mSlice[i], mSlice[i+1], -1)
 			}
-			if x != result {
-				b.Fatalf("Unexpected result\n%q\nExpected\n%q\n", x, result)
+			if x != resultStd {
+				b.Fatalf("Unexpected result\n%q\nExpected\n%q\n", x, resultStd)
 			}
 		}
 	})
@@ -78,8 +82,8 @@ func BenchmarkStringsReplacer(b *testing.B) {
 		for pb.Next() {
 			r := strings.NewReplacer(mSlice...)
 			x := r.Replace(source)
-			if x != result {
-				b.Fatalf("Unexpected result\n%q\nExpected\n%q\n", x, result)
+			if x != resultStd {
+				b.Fatalf("Unexpected result\n%q\nExpected\n%q\n", x, resultStd)
 			}
 		}
 	})
@@ -105,8 +109,8 @@ func BenchmarkTextTemplate(b *testing.B) {
 				b.Fatalf("error when executing template: %s", err)
 			}
 			x := w.Bytes()
-			if !bytes.Equal(x, resultBytes) {
-				b.Fatalf("unexpected result\n%q\nExpected\n%q\n", x, resultBytes)
+			if !bytes.Equal(x, resultTextTemplateBytes) {
+				b.Fatalf("unexpected result\n%q\nExpected\n%q\n", x, resultTextTemplateBytes)
 			}
 			w.Reset()
 		}
@@ -157,6 +161,28 @@ func BenchmarkFastTemplateExecute(b *testing.B) {
 	})
 }
 
+func BenchmarkFastTemplateExecuteStd(b *testing.B) {
+	t, err := NewTemplate(source, "{{", "}}")
+	if err != nil {
+		b.Fatalf("error in template: %s", err)
+	}
+
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		var w bytes.Buffer
+		for pb.Next() {
+			if _, err := t.ExecuteStd(&w, m); err != nil {
+				b.Fatalf("unexpected error: %s", err)
+			}
+			x := w.Bytes()
+			if !bytes.Equal(x, resultStdBytes) {
+				b.Fatalf("unexpected result\n%q\nExpected\n%q\n", x, resultStdBytes)
+			}
+			w.Reset()
+		}
+	})
+}
+
 func BenchmarkFastTemplateExecuteFuncString(b *testing.B) {
 	t, err := NewTemplate(source, "{{", "}}")
 	if err != nil {
@@ -186,6 +212,23 @@ func BenchmarkFastTemplateExecuteString(b *testing.B) {
 			x := t.ExecuteString(m)
 			if x != result {
 				b.Fatalf("unexpected result\n%q\nExpected\n%q\n", x, result)
+			}
+		}
+	})
+}
+
+func BenchmarkFastTemplateExecuteStringStd(b *testing.B) {
+	t, err := NewTemplate(source, "{{", "}}")
+	if err != nil {
+		b.Fatalf("error in template: %s", err)
+	}
+
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			x := t.ExecuteStringStd(m)
+			if x != resultStd {
+				b.Fatalf("unexpected result\n%q\nExpected\n%q\n", x, resultStd)
 			}
 		}
 	})
@@ -262,5 +305,8 @@ func BenchmarkExecuteFunc(b *testing.B) {
 }
 
 func testTagFunc(w io.Writer, tag string) (int, error) {
-	return w.Write(m[tag].([]byte))
+	if t, ok := m[tag]; ok {
+		return w.Write(t.([]byte))
+	}
+	return 0, nil
 }
