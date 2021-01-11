@@ -233,6 +233,9 @@ func TestExecuteFunc(t *testing.T) {
 	// test unknown tag
 	testExecuteFunc(t, "{unknown}", "zz")
 	testExecuteFunc(t, "{foo}q{unexpected}{missing}bar{foo}", "xxxxqzzzzbarxxxx")
+
+	// test tag inside tag
+	testExecuteFunc(t, `{"x": {foo}}`, `zz}`)
 }
 
 func testExecuteFunc(t *testing.T, template, expectedOutput string) {
@@ -269,6 +272,9 @@ func TestExecute(t *testing.T) {
 	// test unknown tag
 	testExecute(t, "{unknown}", "")
 	testExecute(t, "{foo}q{unexpected}{missing}bar{foo}", "xxxxqbarxxxx")
+
+	// test tag inside tag
+	testExecute(t, `{"x": {foo}}`, `}`)
 }
 
 func testExecute(t *testing.T, template, expectedOutput string) {
@@ -299,6 +305,9 @@ func TestExecuteStd(t *testing.T) {
 	// test unknown tag
 	testExecuteStd(t, "{unknown}", "{unknown}")
 	testExecuteStd(t, "{foo}q{unexpected}{missing}bar{foo}", "xxxxq{unexpected}{missing}barxxxx")
+
+	// test tag inside tag
+	testExecuteStd(t, `{"x": {foo}}`, `{"x": xxxx}`)
 }
 
 func testExecuteStd(t *testing.T, template, expectedOutput string) {
@@ -329,6 +338,9 @@ func TestExecuteString(t *testing.T) {
 	// test unknown tag
 	testExecuteString(t, "{unknown}", "")
 	testExecuteString(t, "{foo}q{unexpected}{missing}bar{foo}", "xxxxqbarxxxx")
+
+	// test tag inside tag
+	testExecuteString(t, `{"x": {foo}}`, `}`)
 }
 
 func testExecuteString(t *testing.T, template, expectedOutput string) {
@@ -357,6 +369,9 @@ func TestExecuteStringStd(t *testing.T) {
 	// test unknown tag
 	testExecuteStringStd(t, "{unknown}", "{unknown}")
 	testExecuteStringStd(t, "{foo}q{unexpected}{missing}bar{foo}", "xxxxq{unexpected}{missing}barxxxx")
+
+	// test tag inside tag
+	testExecuteStringStd(t, `{"x": {foo}}`, `{"x": xxxx}`)
 }
 
 func testExecuteStringStd(t *testing.T, template, expectedOutput string) {
