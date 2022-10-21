@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/valyala/bytebufferpool"
 )
@@ -407,6 +408,15 @@ func stdTagFunc(w io.Writer, tag string, m map[string]interface{}) (int, error) 
 }
 
 func keepUnknownTagFunc(w io.Writer, startTag, endTag, tag string, m map[string]interface{}) (int, error) {
+	if i := strings.LastIndex(tag, startTag); i >= 0 {
+		if _, err := w.Write(unsafeString2Bytes(startTag)); err != nil {
+			return 0, err
+		}
+		if _, err := w.Write(unsafeString2Bytes(tag[:i])); err != nil {
+			return 0, err
+		}
+		tag = tag[i+1:]
+	}
 	v, ok := m[tag]
 	if !ok {
 		if _, err := w.Write(unsafeString2Bytes(startTag)); err != nil {
