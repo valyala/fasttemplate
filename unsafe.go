@@ -12,10 +12,5 @@ func unsafeBytes2String(b []byte) string {
 }
 
 func unsafeString2Bytes(s string) (b []byte) {
-	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
-	bh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	bh.Data = sh.Data
-	bh.Cap = sh.Len
-	bh.Len = sh.Len
-	return b
+	return *(*[]byte)(unsafe.Pointer(&s))
 }
