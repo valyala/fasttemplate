@@ -25,37 +25,77 @@ func ExecuteFunc(template, startTag, endTag string, w io.Writer, f TagFunc) (int
 	a := unsafeString2Bytes(startTag)
 	b := unsafeString2Bytes(endTag)
 
+	if bytes.IndexByte(s, '\\') < 0 {
+		var nn int64
+		var ni int
+		var err error
+		for {
+			n := bytes.Index(s, a)
+			if n < 0 {
+				break
+			}
+			ni, err = w.Write(s[:n])
+			nn += int64(ni)
+			if err != nil {
+				return nn, err
+			}
+
+			s = s[n+len(a):]
+			n = bytes.Index(s, b)
+			if n < 0 {
+				// cannot find end tag - just write it to the output.
+				ni, _ = w.Write(a)
+				nn += int64(ni)
+				break
+			}
+
+			ni, err = f(w, unsafeBytes2String(s[:n]))
+			nn += int64(ni)
+			if err != nil {
+				return nn, err
+			}
+			s = s[n+len(b):]
+		}
+		ni, err = w.Write(s)
+		nn += int64(ni)
+
+		return nn, err
+	}
+
 	var nn int64
 	var ni int
 	var err error
 	for {
-		n := bytes.Index(s, a)
-		if n < 0 {
+		pos, k := findUnescaped(s, a)
+		if pos < 0 {
 			break
 		}
-		ni, err = w.Write(s[:n])
+		textBefore := decodeTextWithTrailingSlashes(s[:pos], k, a, b)
+		ni, err = w.Write(textBefore)
 		nn += int64(ni)
 		if err != nil {
 			return nn, err
 		}
 
-		s = s[n+len(a):]
-		n = bytes.Index(s, b)
-		if n < 0 {
+		s = s[pos+len(a):]
+		endPos, endK := findUnescaped(s, b)
+		if endPos < 0 {
 			// cannot find end tag - just write it to the output.
 			ni, _ = w.Write(a)
 			nn += int64(ni)
 			break
 		}
 
-		ni, err = f(w, unsafeBytes2String(s[:n]))
+		tagName := decodeTag(s[:endPos], endK, a, b)
+		ni, err = f(w, tagName)
 		nn += int64(ni)
 		if err != nil {
 			return nn, err
 		}
-		s = s[n+len(b):]
+		s = s[endPos+len(b):]
 	}
-	ni, err = w.Write(s)
+	trailing := decodeText(s, a, b)
+	ni, err = w.Write(trailing)
 	nn += int64(ni)
 
 	return nn, err
@@ -112,7 +152,8 @@ func ExecuteFuncString(template, startTag, endTag string, f TagFunc) string {
 // but when f returns an error, ExecuteFuncStringWithErr won't panic like ExecuteFuncString
 // it just returns an empty string and the error f returned
 func ExecuteFuncStringWithErr(template, startTag, endTag string, f TagFunc) (string, error) {
-	if n := bytes.Index(unsafeString2Bytes(template), unsafeString2Bytes(startTag)); n < 0 {
+	sBytes := unsafeString2Bytes(template)
+	if bytes.IndexByte(sBytes, '\\') < 0 && bytes.Index(sBytes, unsafeString2Bytes(startTag)) < 0 {
 		return template, nil
 	}
 
@@ -234,11 +275,43 @@ func (t *Template) Reset(template, startTag, endTag string) error {
 	a := unsafeString2Bytes(startTag)
 	b := unsafeString2Bytes(endTag)
 
-	tagsCount := bytes.Count(s, a)
-	if tagsCount == 0 {
+	hasSlash := bytes.IndexByte(s, '\\') >= 0
+
+	if !hasSlash {
+		tagsCount := bytes.Count(s, a)
+		if tagsCount == 0 {
+			return nil
+		}
+
+		if tagsCount+1 > cap(t.texts) {
+			t.texts = make([][]byte, 0, tagsCount+1)
+		}
+		if tagsCount > cap(t.tags) {
+			t.tags = make([]string, 0, tagsCount)
+		}
+
+		for {
+			n := bytes.Index(s, a)
+			if n < 0 {
+				t.texts = append(t.texts, s)
+				break
+			}
+			t.texts = append(t.texts, s[:n])
+
+			s = s[n+len(a):]
+			n = bytes.Index(s, b)
+			if n < 0 {
+				return fmt.Errorf("Cannot find end tag=%q in the template=%q starting from %q", endTag, template, s)
+			}
+
+			t.tags = append(t.tags, unsafeBytes2String(s[:n]))
+			s = s[n+len(b):]
+		}
+
 		return nil
 	}
 
+	tagsCount := bytes.Count(s, a)
 	if tagsCount+1 > cap(t.texts) {
 		t.texts = make([][]byte, 0, tagsCount+1)
 	}
@@ -247,21 +320,28 @@ func (t *Template) Reset(template, startTag, endTag string) error {
 	}
 
 	for {
-		n := bytes.Index(s, a)
-		if n < 0 {
-			t.texts = append(t.texts, s)
+		pos, k := findUnescaped(s, a)
+		if pos < 0 {
+			trailing := decodeText(s, a, b)
+			if len(t.tags) > 0 || len(trailing) != len(s) || !bytes.Equal(trailing, s) {
+				t.texts = append(t.texts, trailing)
+			}
 			break
 		}
-		t.texts = append(t.texts, s[:n])
 
-		s = s[n+len(a):]
-		n = bytes.Index(s, b)
-		if n < 0 {
+		textBefore := decodeTextWithTrailingSlashes(s[:pos], k, a, b)
+		t.texts = append(t.texts, textBefore)
+
+		s = s[pos+len(a):]
+		endPos, endK := findUnescaped(s, b)
+		if endPos < 0 {
 			return fmt.Errorf("Cannot find end tag=%q in the template=%q starting from %q", endTag, template, s)
 		}
 
-		t.tags = append(t.tags, unsafeBytes2String(s[:n]))
-		s = s[n+len(b):]
+		tagName := decodeTag(s[:endPos], endK, a, b)
+		t.tags = append(t.tags, tagName)
+
+		s = s[endPos+len(b):]
 	}
 
 	return nil
@@ -433,4 +513,100 @@ func keepUnknownTagFunc(w io.Writer, startTag, endTag, tag string, m map[string]
 	default:
 		panic(fmt.Sprintf("tag=%q contains unexpected value type=%#v. Expected []byte, string or TagFunc", tag, v))
 	}
+}
+
+func countBackslashes(s []byte, pos int) int {
+	var count int
+	for i := pos - 1; i >= 0 && s[i] == '\\'; i-- {
+		count++
+	}
+	return count
+}
+
+func findUnescaped(s, delim []byte) (int, int) {
+	offset := 0
+	for {
+		idx := bytes.Index(s[offset:], delim)
+		if idx < 0 {
+			return -1, 0
+		}
+		pos := offset + idx
+		k := countBackslashes(s, pos)
+		if k%2 == 0 {
+			return pos, k
+		}
+		offset = pos + len(delim)
+	}
+}
+
+func nextDelim(s, a, b []byte) (int, []byte) {
+	idxA := bytes.Index(s, a)
+	if bytes.Equal(a, b) {
+		if idxA < 0 {
+			return -1, nil
+		}
+		return idxA, a
+	}
+	idxB := bytes.Index(s, b)
+	if idxA < 0 && idxB < 0 {
+		return -1, nil
+	}
+	if idxA >= 0 && (idxB < 0 || idxA <= idxB) {
+		return idxA, a
+	}
+	return idxB, b
+}
+
+func decodeText(s []byte, a, b []byte) []byte {
+	if bytes.IndexByte(s, '\\') < 0 {
+		return s
+	}
+
+	pos, delim := nextDelim(s, a, b)
+	if pos < 0 {
+		return s
+	}
+
+	buf := make([]byte, 0, len(s))
+	for {
+		if pos < 0 {
+			buf = append(buf, s...)
+			break
+		}
+		k := countBackslashes(s, pos)
+		buf = append(buf, s[:pos-k]...)
+		half := k / 2
+		for j := 0; j < half; j++ {
+			buf = append(buf, '\\')
+		}
+		buf = append(buf, delim...)
+		s = s[pos+len(delim):]
+		pos, delim = nextDelim(s, a, b)
+	}
+	return buf
+}
+
+func decodeTextWithTrailingSlashes(s []byte, k int, a, b []byte) []byte {
+	if k == 0 && bytes.IndexByte(s, '\\') < 0 {
+		return s
+	}
+	prefix := decodeText(s[:len(s)-k], a, b)
+	half := k / 2
+	if half == 0 {
+		return prefix
+	}
+	res := make([]byte, len(prefix)+half)
+	copy(res, prefix)
+	for i := len(prefix); i < len(res); i++ {
+		res[i] = '\\'
+	}
+	return res
+}
+
+func decodeTag(tag []byte, k int, a, b []byte) string {
+	if k == 0 && bytes.IndexByte(tag, '\\') < 0 {
+		return unsafeBytes2String(tag)
+	}
+	decoded := decodeTextWithTrailingSlashes(tag, k, a, b)
+	return string(decoded)
 }
